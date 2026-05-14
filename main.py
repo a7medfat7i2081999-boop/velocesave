@@ -1,227 +1,316 @@
-import os
-from flask import Flask, request, render_template_string, redirect, send_from_directory
-import subprocess
-
-# تحديث أداة التحميل إجبارياً فور تشغيل السيرفر لمنع حظر الروابط
-os.system('pip install --upgrade yt-dlp')
-
-app = Flask(__name__)
-
-HTML_CODE = """
+```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeloceSave - تنزيل الفيديوهات السريع</title>
-    <link rel="icon" type="image/png" href="/logo.png">
-    
-    <!-- مكتبة جوجل الرسمية لتسجيل الدخول بأمان -->
-    <script src="google.com" async defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VeloceSave</title>
 
-    <style>
-        html, body { height: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #F9FAFB; color: #1F2937; }
-        .progress-container { position: fixed; top: 0; left: 0; width: 100%; height: 6px; background: #E5E7EB; z-index: 10000; }
-        .progress-bar { height: 100%; width: 0%; background: #7C3AED; transition: width 0.4s ease; }
-        .top-navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; box-sizing: border-box; }
-        .logo-text { font-size: 32px; font-weight: 900; letter-spacing: -1px; background: linear-gradient(135deg, #7C3AED, #A78BFA); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: sans-serif; }
-        .lang-select { padding: 8px 16px; border: 2px solid #E5E7EB; border-radius: 10px; background: white; color: #4B5563; font-weight: 600; cursor: pointer; font-size: 14px; outline: none; }
-        .wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; padding: 20px; box-sizing: border-box; }
-        .container { background: #FFFFFF; padding: 50px 40px; border-radius: 24px; box-shadow: 0 10px 30px rgba(124, 58, 237, 0.06); max-width: 600px; width: 100%; border: 1px solid #E5E7EB; text-align: center; }
-        h1 { color: #111827; font-size: 28px; font-weight: 800; margin-top: 0; margin-bottom: 12px; }
-        p.subtitle { color: #6B7280; font-size: 16px; margin-bottom: 35px; margin-top: 0; }
-        .counter-badge { display: inline-block; background: rgba(124, 58, 237, 0.1); color: #7C3AED; padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 14px; margin-bottom: 20px; }
-        input { width: 100%; padding: 18px 20px; background: #F3F4F6; border: 2px solid #E5E7EB; border-radius: 14px; color: #111827; box-sizing: border-box; font-size: 16px; text-align: left; transition: all 0.3s; margin-bottom: 25px; }
-        input:focus { border-color: #7C3AED; background: #FFFFFF; outline: none; box-shadow: 0 0 12px rgba(124, 58, 237, 0.15); }
-        .options { display: flex; justify-content: space-between; margin-bottom: 30px; gap: 12px; }
-        .option-card { flex: 1; background: #F3F4F6; border: 2px solid transparent; padding: 16px; border-radius: 12px; cursor: pointer; font-weight: 700; color: #4B5563; transition: all 0.3s; text-align: center; }
-        .option-card.active { border-color: #7C3AED; background: rgba(124, 58, 237, 0.08); color: #7C3AED; }
-        button { width: 100%; padding: 18px; background: #7C3AED; color: white; border: none; border-radius: 14px; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3); }
-        button:hover { background: #6D28D9; transform: translateY(-2px); }
-        .features-grid { display: flex; justify-content: space-between; gap: 10px; margin-top: 30px; }
-        .feature-badge { flex: 1; background: #F9FAFB; border: 1px solid #E5E7EB; padding: 12px 5px; border-radius: 10px; font-size: 14px; font-weight: 600; color: #4B5563; }
-        .welcome-section { max-width: 600px; width: 100%; margin: 40px auto 0 auto; background: white; border: 1px solid #E5E7EB; padding: 30px; border-radius: 20px; text-align: right; box-shadow: 0 4px 20px rgba(0,0,0,0.02); }
-        .welcome-section p { font-size: 15px; color: #4B5563; line-height: 1.8; margin: 0; }
-        
-        /* نافذة قفل الحظر المحمية بجوجل */
-        .paywall { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 14, 23, 0.98); z-index: 99999; justify-content: center; align-items: center; color: white; flex-direction: column; padding: 20px; text-align: center; box-sizing: border-box; }
-        .auth-box { background: #1F2937; padding: 40px; border-radius: 20px; max-width: 430px; width: 100%; border: 1px solid #374151; box-shadow: 0 10px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; }
-        .auth-box h2 { font-size: 24px; color: #EF4444; margin-top: 0; margin-bottom: 10px; }
-        .auth-box p { color: #9CA3AF; font-size: 14px; margin-bottom: 25px; line-height: 1.6; }
-        .google-btn-container { margin-top: 10px; width: 100%; display: flex; justify-content: center; }
-    </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family:'Cairo',sans-serif;
+    }
+
+    body{
+      background:#f5f5f7;
+      color:#111;
+    }
+
+    /* NAVBAR */
+    .navbar{
+      background:#07132c;
+      padding:18px 7%;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .logo{
+      font-size:38px;
+      font-weight:800;
+      color:white;
+    }
+
+    .logo span{
+      color:#7b4dff;
+    }
+
+    .nav-links{
+      display:flex;
+      gap:35px;
+    }
+
+    .nav-links a{
+      color:white;
+      text-decoration:none;
+      font-size:18px;
+      transition:.3s;
+    }
+
+    .nav-links a:hover{
+      color:#8f6bff;
+    }
+
+    /* HERO */
+    .hero{
+      text-align:center;
+      padding:80px 20px;
+    }
+
+    .hero h1{
+      font-size:70px;
+      color:#3b3b9e;
+      margin-bottom:15px;
+      font-weight:800;
+    }
+
+    .hero p{
+      color:#666;
+      font-size:24px;
+      margin-bottom:40px;
+    }
+
+    /* CONVERTER BOX */
+    .converter-box{
+      max-width:900px;
+      margin:auto;
+      background:white;
+      border:2px solid #d9d0ff;
+      border-radius:70px;
+      display:flex;
+      align-items:center;
+      overflow:hidden;
+      box-shadow:0 8px 25px rgba(0,0,0,0.06);
+    }
+
+    .converter-box input{
+      flex:1;
+      border:none;
+      outline:none;
+      padding:25px;
+      font-size:18px;
+      background:transparent;
+    }
+
+    .converter-box button{
+      border:none;
+      background:linear-gradient(45deg,#7b4dff,#b14dff);
+      color:white;
+      padding:22px 45px;
+      font-size:20px;
+      cursor:pointer;
+      transition:.3s;
+      border-radius:50px;
+      margin:8px;
+      font-weight:700;
+    }
+
+    .converter-box button:hover{
+      transform:scale(1.05);
+    }
+
+    /* FEATURES */
+    .features{
+      display:flex;
+      justify-content:center;
+      gap:20px;
+      flex-wrap:wrap;
+      margin-top:35px;
+    }
+
+    .feature{
+      background:white;
+      border-radius:15px;
+      padding:12px 22px;
+      box-shadow:0 5px 15px rgba(0,0,0,0.05);
+      font-weight:700;
+      color:#555;
+    }
+
+    /* SECTION */
+    .section{
+      margin-top:100px;
+      padding:0 10%;
+      text-align:center;
+    }
+
+    .section h2{
+      font-size:55px;
+      margin-bottom:20px;
+      color:#111827;
+    }
+
+    .section p{
+      color:#666;
+      line-height:2;
+      font-size:20px;
+      max-width:900px;
+      margin:auto;
+    }
+
+    /* CARDS */
+    .cards{
+      margin-top:60px;
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:30px;
+    }
+
+    .card{
+      background:white;
+      padding:35px;
+      border-radius:25px;
+      box-shadow:0 10px 25px rgba(0,0,0,0.06);
+      transition:.3s;
+    }
+
+    .card:hover{
+      transform:translateY(-8px);
+    }
+
+    .card h3{
+      color:#4a3aff;
+      margin-bottom:15px;
+      font-size:28px;
+    }
+
+    .card p{
+      font-size:18px;
+    }
+
+    /* FOOTER */
+    footer{
+      margin-top:120px;
+      background:#07132c;
+      color:white;
+      text-align:center;
+      padding:30px;
+    }
+
+    @media(max-width:768px){
+
+      .hero h1{
+        font-size:45px;
+      }
+
+      .hero p{
+        font-size:18px;
+      }
+
+      .converter-box{
+        flex-direction:column;
+        border-radius:30px;
+      }
+
+      .converter-box button{
+        width:90%;
+      }
+
+      .nav-links{
+        display:none;
+      }
+
+      .section h2{
+        font-size:35px;
+      }
+
+    }
+
+  </style>
 </head>
 <body>
-    <div class="progress-container"><div class="progress-bar" id="topProgressBar"></div></div>
-    
-    <!-- واجهة الدخول الإجبارية عبر جوجل فقط بدون خانات كتابة -->
-    <div class="paywall" id="paywallZone">
-        <div class="auth-box">
-            <h2 id="paywallTitle">⚠️ انتهت المحاولات المجانية!</h2>
-            <p id="paywallText">لديك 15 محاولة مجانية قبل تسجيل الدخول. يرجى تسجيل الدخول الآمن باستخدام حساب Google الخاص بك الآن لمتابعة التنزيل الفوري.</p>
-            
-            <!-- زر تسجيل دخول جوجل الرسمي الآمن -->
-            <div class="google-btn-container">
-                <div id="g_id_onload"
-                     data-client_id="googleusercontent.com"
-                     data-context="signin"
-                     data-ux_mode="popup"
-                     data-callback="onGoogleSignIn"
-                     data-auto_prompt="false">
-                </div>
-                <div class="g_id_signin"
-                     data-type="standard"
-                     data-shape="pill"
-                     data-theme="filled_blue"
-                     data-text="signin_with"
-                     data-size="large"
-                     data-logo_alignment="left">
-                </div>
-            </div>
-        </div>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+
+    <div class="logo">
+      Veloce<span>Save</span>
     </div>
 
-    <div class="top-navbar">
-        <div class="logo-text">VeloceSave</div>
-        <select class="lang-select" onchange="changeLanguage(this.value)">
-            <option value="ar">العربية</option>
-            <option value="en">English</option>
-            <option value="es">Español</option>
-            <option value="fr">Français</option>
-            <option value="tr">Türkçe</option>
-            <option value="de">Deutsch</option>
-            <option value="zh">中文</option>
-        </select>
+    <div class="nav-links">
+      <a href="#">يوتيوب إلى MP4</a>
+      <a href="#">يوتيوب إلى MP3</a>
+      <a href="#">تنزيل فيديوهات</a>
     </div>
-    <div class="wrapper">
-        <div class="container">
-            <div class="counter-badge" id="limitBadge">متبقي لك 15 محاولة مجانية</div>
-            <h1 id="mainTitle">تنزيل الفيديوهات السريع</h1>
-            <p class="subtitle" id="mainSubtitle">نزّل فيديوهاتك بصيغة MP3 أو MP4 عبر الإنترنت مجاناً</p>
-            <form id="downloadForm" onsubmit="handleDownload(event)">
-                <input type="url" id="videoUrl" placeholder="الصق رابط الفيديو هنا..." required>
-                <div class="options">
-                    <div class="option-card active" id="opt-mp4" onclick="setFormat('best')">فيديو MP4</div>
-                    <div class="option-card" id="opt-mp3" onclick="setFormat('mp3')">صوت MP3</div>
-                </div>
-                <input type="hidden" id="videoFormat" value="best">
-                <button type="submit" id="btnText">تـنـزيـل</button>
-            </form>
-            <div class="features-grid">
-                <div class="feature-badge" id="f1">سهل</div>
-                <div class="feature-badge" id="f2">مجاني</div>
-                <div class="feature-badge" id="f3">بلا حدود</div>
-                <div class="feature-badge" id="f4">لا يحتاج التنزيل</div>
-            </div>
-        </div>
-        <div class="welcome-section">
-            <p id="welcomeParagraph">
-                اهلا بك في محمل الفيديوهات السريع ما عليك سوي لصق الرابط فيه مربع الURL ثم ضغط تحميل نحن سعداء جدا لانك تستخدم موقعنا ونأمل ان يكون عجبك لديك ١٥ محاولة مجانية بدون تسجيل دخول لتنزيل الفيدوهات وبعدها تنتقل للحساب المدفوع ويجب تسجيل الدخول شكرا لك حقا انك تستخدم خدمتنا
-            </p>
-        </div>
+
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+
+    <h1>تحويل يوتيوب إلى MP3</h1>
+
+    <p>
+      حوّل فيديوهات يوتيوب إلى ملفات صوتية بجودة عالية خلال ثوانٍ.
+    </p>
+
+    <div class="converter-box">
+
+      <input type="text" placeholder="الصق رابط يوتيوب هنا..." />
+
+      <button>تحويل</button>
+
     </div>
-    <script>
-        const translations = {
-            ar: {
-                badge: "متبقي لك {r} محاولة مجانية", title: "تنزيل الفيديوهات السريع", subtitle: "نزّل فيديوهاتك بصيغة MP3 أو MP4 عبر الإنترنت مجاناً", btn: "تـنـزيـل", f1: "سهل", f2: "مجاني", f3: "بلا حدود", f4: "لا يحتاج التنزيل", welcome: "اهلا بك في محمل الفيديوهات السريع ما عليك سوي لصق الرابط فيه مربع الURL ثم ضغط تحميل نحن سعداء جدا لانك تستخدم موقعنا ونأمل ان يكون عجبك لديك ١٥ محاولة مجانية بدون تسجيل دخول لتنزيل الفيدوهات وبعدها تنتقل للحساب المدفوع ويجب تسجيل الدخول شكرا لك حقا انك تستخدم خدمتنا", pTitle: "⚠️ انتهت المحاولات المجانية!", pText: "لديك 15 محاولة مجانية قبل تسجيل الدخول. يرجى تسجيل الدخول الآمن باستخدام حساب Google الخاص بك الآن لمتابعة التنزيل الفوري."
-            },
-            en: {
-                badge: "{r} free downloads remaining", title: "Fast Video Downloader", subtitle: "Download your favorite videos as MP3 or MP4 online for free", btn: "Download", f1: "Easy", f2: "Free", f3: "Unlimited", f4: "No Install", welcome: "Welcome to our fast video downloader! Just paste the link into the URL box and click download. We are very happy you are using our website and hope you like it. You have 15 free attempts without logging in, after which you transfer to the paid account and must log in. Thank you truly for using our service.", pTitle: "⚠️ Free limits reached!", pText: "You have 15 free downloads before logging in. Please log in securely with your Google account to continue downloading."
-            }
-        };
-        let currentLang = 'ar';
-        let downloadsCount = localStorage.getItem('user_downloads') ? parseInt(localStorage.getItem('user_downloads')) : 0;
-        let isLoggedIn = localStorage.getItem('user_logged_in') === 'true';
-        updateUIElements();
-        
-        function setFormat(fmt) {
-            document.getElementById('videoFormat').value = fmt;
-            document.getElementById('opt-mp4').classList.remove('active');
-            document.getElementById('opt-mp3').classList.remove('active');
-            if(fmt === 'best') { document.getElementById('opt-mp4').classList.add('active'); } else { document.getElementById('opt-mp3').classList.add('active'); }
-        }
-        function changeLanguage(lang) {
-            currentLang = translations[lang] ? lang : 'en';
-            document.body.dir = currentLang === 'ar' ? "rtl" : "ltr";
-            updateUIElements();
-        }
-        function handleDownload(e) {
-            e.preventDefault();
-            if (!isLoggedIn && downloadsCount >= 15) { document.getElementById('paywallZone').style.display = 'flex'; return; }
-            var url = document.getElementById('videoUrl').value;
-            var fmt = document.getElementById('videoFormat').value;
-            if(!url) return;
-            if (!isLoggedIn) { downloadsCount++; localStorage.setItem('user_downloads', downloadsCount); }
-            updateUIElements();
-            var downloadUrl = '/download?url=' + encodeURIComponent(url) + '&format=' + fmt;
-            window.open(downloadUrl, '_blank');
-            if (!isLoggedIn && downloadsCount >= 15) { setTimeout(() => { document.getElementById('paywallZone').style.display = 'flex'; }, 1000); }
-        }
-        
-        // هذه الدالة تعمل فقط عند نجاح تسجيل الدخول الحقيقي من جوجل
-        function onGoogleSignIn(response) {
-            if (response.credential) {
-                localStorage.setItem('user_logged_in', 'true');
-                isLoggedIn = true;
-                document.getElementById('paywallZone').style.display = 'none';
-                alert('تم تسجيل الدخول بأمان عبر حساب Google بنجاح!');
-                updateUIElements();
-            }
-        }
-        
-        function updateUIElements() {
-            let percentage = (downloadsCount / 15) * 100;
-            if (isLoggedIn) percentage = 0; 
-            document.getElementById('topProgressBar').style.width = percentage + '%';
-            let remaining = 15 - downloadsCount;
-            if (remaining < 0 || isLoggedIn) remaining = 0;
-            let data = translations[currentLang] || translations['en'];
-            if (isLoggedIn) { document.getElementById('limitBadge').innerText = "وضع حساب Google نشط ✨"; document.getElementById('paywallZone').style.display = 'none'; } else { document.getElementById('limitBadge').innerText = data.badge.replace("{r}", remaining); }
-            document.getElementById('mainTitle').innerText = data.title;
-            document.getElementById('mainSubtitle').innerText = data.subtitle;
-            document.getElementById('btnText').innerText = data.btn;
-            document.getElementById('f1').innerText = data.f1;
-            document.getElementById('f2').innerText = data.f2;
-            document.getElementById('f3').innerText = data.f3;
-            document.getElementById('f4').innerText = data.f4;
-            document.getElementById('welcomeParagraph').innerText = data.welcome;
-            document.getElementById('paywallTitle').innerText = data.pTitle;
-            document.getElementById('paywallText').innerText = data.pText;
-            if (!isLoggedIn && downloadsCount >= 15) { document.getElementById('paywallZone').style.display = 'flex'; }
-        }
-    </script>
+
+    <div class="features">
+
+      <div class="feature">⚡ سريع</div>
+      <div class="feature">∞ بدون حدود</div>
+      <div class="feature">🎁 مجاني</div>
+      <div class="feature">☁ عبر الإنترنت</div>
+
+    </div>
+
+  </section>
+
+  <!-- SECTION -->
+  <section class="section">
+
+    <h2>كيفية تنزيل ملفات MP3 من يوتيوب</h2>
+
+    <p>
+      انسخ رابط الفيديو من يوتيوب ثم الصقه داخل مربع التحويل واضغط على زر التحويل.
+      بعد انتهاء المعالجة ستتمكن من تنزيل الملف الصوتي بسهولة وبأعلى جودة ممكنة.
+    </p>
+
+    <div class="cards">
+
+      <div class="card">
+        <h3>1. انسخ الرابط</h3>
+        <p>
+          قم بنسخ رابط فيديو يوتيوب الذي تريد تحويله.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>2. الصق الرابط</h3>
+        <p>
+          الصق الرابط داخل مربع التحويل في الأعلى.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>3. تحميل الملف</h3>
+        <p>
+          اضغط تحميل واحصل على ملف MP3 فوراً.
+        </p>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    © 2026 VeloceSave - جميع الحقوق محفوظة
+  </footer>
+
 </body>
 </html>
-"""
-
-@app.route('/')
-def home():
-    return render_template_string(HTML_CODE)
-
-@app.route('/logo.png')
-def favicon():
-    return send_from_directory(os.getcwd(), 'logo.png', mimetype='image/png')
-
-@app.route('/download')
-def download():
-    video_url = request.args.get('url')
-    fmt = request.args.get('format', 'best')
-    if not video_url:
-        return "الرابط مطلوب", 400
-    try:
-        if fmt == 'mp3':
-            command = f'yt-dlp -g -f "ba" "{video_url}"'
-        else:
-            command = f'yt-dlp -g -f "best" "{video_url}"'
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
-        direct_link = result.stdout.strip()
-        if direct_link:
-            return redirect(direct_link)
-        else:
-            return "فشل استخراج الرابط، تأكد من صحته", 400
-    except Exception as e:
-        return f"خطأ في النظام: {str(e)}", 500
-
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+```
