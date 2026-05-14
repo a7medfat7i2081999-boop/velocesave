@@ -198,10 +198,8 @@ def download():
         return "الرابط مطلوب", 400
     try:
         if fmt == 'mp3':
-            command = f'yt-dlp -g -f "ba" "{video_url}"'
-        else:
-            command = f'yt-dlp -g -f "best" "{video_url}"'
-        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+command = f'yt-dlp -g -f "ba" "{video_url}"'        else:
+command = f'yt-dlp -g -f "best" "{video_url}"'        result = subprocess.run(command, shell=True, capture_output=True, text=True)
         direct_link = result.stdout.strip()
         if direct_link:
             return redirect(direct_link)
@@ -211,4 +209,5 @@ def download():
         return f"خطأ في النظام: {str(e)}", 500
 
 if __name__ == '__main__':
+    os.system('pip install --upgrade yt-dlp')
     app.run(host='0.0.0.0', port=8080)
