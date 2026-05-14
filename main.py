@@ -2,6 +2,9 @@ import os
 from flask import Flask, request, render_template_string, redirect, send_from_directory
 import subprocess
 
+# نقوم بتحديث أداة التحميل إجبارياً فور تشغيل السيرفر لمنع حظر الروابط
+os.system('pip install --upgrade yt-dlp')
+
 app = Flask(__name__)
 
 HTML_CODE = """
@@ -12,7 +15,6 @@ HTML_CODE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VeloceSave - تنزيل الفيديوهات السريع</title>
     <link rel="icon" type="image/png" href="/logo.png">
-
     <style>
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #F9FAFB; color: #1F2937; }
         .progress-container { position: fixed; top: 0; left: 0; width: 100%; height: 6px; background: #E5E7EB; z-index: 10000; }
@@ -28,7 +30,7 @@ HTML_CODE = """
         input { width: 100%; padding: 18px 20px; background: #F3F4F6; border: 2px solid #E5E7EB; border-radius: 14px; color: #111827; box-sizing: border-box; font-size: 16px; text-align: left; transition: all 0.3s; margin-bottom: 25px; }
         input:focus { border-color: #7C3AED; background: #FFFFFF; outline: none; box-shadow: 0 0 12px rgba(124, 58, 237, 0.15); }
         .options { display: flex; justify-content: space-between; margin-bottom: 30px; gap: 12px; }
-        .option-card { flex: 1; background: #F3F4F6; border: 2px solid transparent; padding: 14px; border-radius: 12px; cursor: pointer; font-weight: 700; color: #4B5563; transition: all 0.3s; text-align: center; }
+        .option-card { flex: 1; background: #F3F4F6; border: 2px solid transparent; padding: 16px; border-radius: 12px; cursor: pointer; font-weight: 700; color: #4B5563; transition: all 0.3s; text-align: center; }
         .option-card.active { border-color: #7C3AED; background: rgba(124, 58, 237, 0.08); color: #7C3AED; }
         button { width: 100%; padding: 18px; background: #7C3AED; color: white; border: none; border-radius: 14px; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3); }
         button:hover { background: #6D28D9; transform: translateY(-2px); }
@@ -102,24 +104,10 @@ HTML_CODE = """
     <script>
         const translations = {
             ar: {
-                badge: "متبقي لك {r} محاولة مجانية",
-                title: "تنزيل الفيديوهات السريع",
-                subtitle: "نزّل فيديوهاتك بصيغة MP3 أو MP4 عبر الإنترنت مجاناً",
-                btn: "تـنـزيـل",
-                f1: "سهل", f2: "مجاني", f3: "بلا حدود", f4: "لا يحتاج التنزيل",
-                welcome: "اهلا بك في محمل الفيديوهات السريع ما عليك سوي لصق الرابط فيه مربع الURL ثم ضغط تحميل نحن سعداء جدا لانك تستخدم موقعنا ونأمل ان يكون عجبك لديك ١٥ محاولة مجانية بدون تسجيل دخول لتنزيل الفيدوهات وبعدها تنتقل للحساب المدفوع ويجب تسجيل الدخول شكرا لك حقا انك تستخدم خدمتنا",
-                pTitle: "⚠️ انتهت المحاولات المجانية!",
-                pText: "لديك 15 محاولة مجانية قبل تسجيل الدخول. يرجى تسجيل الدخول أو إنشاء حساب الآن لمتابعة تحميل فيديوهاتك."
+                badge: "متبقي لك {r} محاولة مجانية", title: "تنزيل الفيديوهات السريع", subtitle: "نزّل فيديوهاتك بصيغة MP3 أو MP4 عبر الإنترنت مجاناً", btn: "تـنـزيـل", f1: "سهل", f2: "مجاني", f3: "بلا حدود", f4: "لا يحتاج التنزيل", welcome: "اهلا بك في محمل الفيديوهات السريع ما عليك سوي لصق الرابط فيه مربع الURL ثم ضغط تحميل نحن سعداء جدا لانك تستخدم موقعنا ونأمل ان يكون عجبك لديك ١٥ محاولة مجانية بدون تسجيل دخول لتنزيل الفيدوهات وبعدها تنتقل للحساب المدفوع ويجب تسجيل الدخول شكرا لك حقا انك تستخدم خدمتنا", pTitle: "⚠️ انتهت المحاولات المجانية!", pText: "لديك 15 محاولة مجانية قبل تسجيل الدخول. يرجى تسجيل الدخول أو إنشاء حساب الآن لمتابعة تحميل فيديوهاتك."
             },
             en: {
-                badge: "{r} free downloads remaining",
-                title: "Fast Video Downloader",
-                subtitle: "Download your favorite videos as MP3 or MP4 online for free",
-                btn: "Download",
-                f1: "Easy", f2: "Free", f3: "Unlimited", f4: "No Install",
-                welcome: "Welcome to our fast video downloader! Just paste the link into the URL box and click download. We are very happy you are using our website and hope you like it. You have 15 free attempts without logging in, after which you transfer to the paid account and must log in. Thank you truly for using our service.",
-                pTitle: "⚠️ Free limits reached!",
-                pText: "You have 15 free downloads before logging in. Please log in or create an account to continue downloading."
+                badge: "{r} free downloads remaining", title: "Fast Video Downloader", subtitle: "Download your favorite videos as MP3 or MP4 online for free", btn: "Download", f1: "Easy", f2: "Free", f3: "Unlimited", f4: "No Install", welcome: "Welcome to our fast video downloader! Just paste the link into the URL box and click download. We are very happy you are using our website and hope you like it. You have 15 free attempts without logging in, after which you transfer to the paid account and must log in. Thank you truly for using our service.", pTitle: "⚠️ Free limits reached!", pText: "You have 15 free downloads before logging in. Please log in or create an account to continue downloading."
             }
         };
         let currentLang = 'ar';
@@ -198,8 +186,10 @@ def download():
         return "الرابط مطلوب", 400
     try:
         if fmt == 'mp3':
-command = f'yt-dlp -g -f "ba" "{video_url}"'        else:
-command = f'yt-dlp -g -f "best" "{video_url}"'        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            command = f'yt-dlp -g -f "ba" "{video_url}"'
+        else:
+            command = f'yt-dlp -g -f "best" "{video_url}"'
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
         direct_link = result.stdout.strip()
         if direct_link:
             return redirect(direct_link)
@@ -209,5 +199,6 @@ command = f'yt-dlp -g -f "best" "{video_url}"'        result = subprocess.run(co
         return f"خطأ في النظام: {str(e)}", 500
 
 if __name__ == '__main__':
-    os.system('pip install --upgrade yt-dlp')
-    app.run(host='0.0.0.0', port=8080)
+    # لتشغيل السيرفر على خطة Render بشكل متوافق ومثالي
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
