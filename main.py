@@ -2,7 +2,7 @@ import os
 from flask import Flask, request, render_template_string, redirect, send_from_directory
 import subprocess
 
-# نقوم بتحديث أداة التحميل إجبارياً فور تشغيل السيرفر لمنع حظر الروابط
+# تحديث أداة التحميل إجبارياً فور تشغيل السيرفر لمنع حظر الروابط
 os.system('pip install --upgrade yt-dlp')
 
 app = Flask(__name__)
@@ -15,6 +15,10 @@ HTML_CODE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VeloceSave - تنزيل الفيديوهات السريع</title>
     <link rel="icon" type="image/png" href="/logo.png">
+    
+    <!-- مكتبة جوجل الرسمية لتسجيل الدخول بأمان -->
+    <script src="google.com" async defer></script>
+
     <style>
         html, body { height: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #F9FAFB; color: #1F2937; }
         .progress-container { position: fixed; top: 0; left: 0; width: 100%; height: 6px; background: #E5E7EB; z-index: 10000; }
@@ -38,30 +42,45 @@ HTML_CODE = """
         .feature-badge { flex: 1; background: #F9FAFB; border: 1px solid #E5E7EB; padding: 12px 5px; border-radius: 10px; font-size: 14px; font-weight: 600; color: #4B5563; }
         .welcome-section { max-width: 600px; width: 100%; margin: 40px auto 0 auto; background: white; border: 1px solid #E5E7EB; padding: 30px; border-radius: 20px; text-align: right; box-shadow: 0 4px 20px rgba(0,0,0,0.02); }
         .welcome-section p { font-size: 15px; color: #4B5563; line-height: 1.8; margin: 0; }
+        
+        /* نافذة قفل الحظر المحمية بجوجل */
         .paywall { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 14, 23, 0.98); z-index: 99999; justify-content: center; align-items: center; color: white; flex-direction: column; padding: 20px; text-align: center; box-sizing: border-box; }
-        .auth-box { background: #1F2937; padding: 40px; border-radius: 20px; max-width: 400px; width: 100%; border: 1px solid #374151; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .auth-box { background: #1F2937; padding: 40px; border-radius: 20px; max-width: 430px; width: 100%; border: 1px solid #374151; box-shadow: 0 10px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; }
         .auth-box h2 { font-size: 24px; color: #EF4444; margin-top: 0; margin-bottom: 10px; }
-        .auth-box p { color: #9CA3AF; font-size: 14px; margin-bottom: 25px; }
-        .auth-box input { background: #374151; border-color: #4B5563; color: white; margin-bottom: 15px; padding: 14px; text-align: right; }
-        .auth-box input::placeholder { color: #9CA3AF; }
-        .auth-box input:focus { border-color: #8B5CF6; background: #374151; }
-        .auth-btn { width: 100%; padding: 14px; background: #7C3AED; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
-        .auth-btn:hover { background: #6D28D9; }
+        .auth-box p { color: #9CA3AF; font-size: 14px; margin-bottom: 25px; line-height: 1.6; }
+        .google-btn-container { margin-top: 10px; width: 100%; display: flex; justify-content: center; }
     </style>
 </head>
 <body>
     <div class="progress-container"><div class="progress-bar" id="topProgressBar"></div></div>
+    
+    <!-- واجهة الدخول الإجبارية عبر جوجل فقط بدون خانات كتابة -->
     <div class="paywall" id="paywallZone">
         <div class="auth-box">
             <h2 id="paywallTitle">⚠️ انتهت المحاولات المجانية!</h2>
-            <p id="paywallText">لديك 15 محاولة مجانية قبل تسجيل الدخول. يرجى تسجيل الدخول أو إنشاء حساب الآن لمتابعة تحميل فيديوهاتك.</p>
-            <form onsubmit="handleLogin(event)">
-                <input type="email" placeholder="البريد الإلكتروني" required>
-                <input type="password" placeholder="كلمة المرور" required>
-                <button type="submit" class="auth-btn">تسجيل الدخول / إنشاء حساب</button>
-            </form>
+            <p id="paywallText">لديك 15 محاولة مجانية قبل تسجيل الدخول. يرجى تسجيل الدخول الآمن باستخدام حساب Google الخاص بك الآن لمتابعة التنزيل الفوري.</p>
+            
+            <!-- زر تسجيل دخول جوجل الرسمي الآمن -->
+            <div class="google-btn-container">
+                <div id="g_id_onload"
+                     data-client_id="googleusercontent.com"
+                     data-context="signin"
+                     data-ux_mode="popup"
+                     data-callback="onGoogleSignIn"
+                     data-auto_prompt="false">
+                </div>
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-shape="pill"
+                     data-theme="filled_blue"
+                     data-text="signin_with"
+                     data-size="large"
+                     data-logo_alignment="left">
+                </div>
+            </div>
         </div>
     </div>
+
     <div class="top-navbar">
         <div class="logo-text">VeloceSave</div>
         <select class="lang-select" onchange="changeLanguage(this.value)">
@@ -104,16 +123,17 @@ HTML_CODE = """
     <script>
         const translations = {
             ar: {
-                badge: "متبقي لك {r} محاولة مجانية", title: "تنزيل الفيديوهات السريع", subtitle: "نزّل فيديوهاتك بصيغة MP3 أو MP4 عبر الإنترنت مجاناً", btn: "تـنـزيـل", f1: "سهل", f2: "مجاني", f3: "بلا حدود", f4: "لا يحتاج التنزيل", welcome: "اهلا بك في محمل الفيديوهات السريع ما عليك سوي لصق الرابط فيه مربع الURL ثم ضغط تحميل نحن سعداء جدا لانك تستخدم موقعنا ونأمل ان يكون عجبك لديك ١٥ محاولة مجانية بدون تسجيل دخول لتنزيل الفيدوهات وبعدها تنتقل للحساب المدفوع ويجب تسجيل الدخول شكرا لك حقا انك تستخدم خدمتنا", pTitle: "⚠️ انتهت المحاولات المجانية!", pText: "لديك 15 محاولة مجانية قبل تسجيل الدخول. يرجى تسجيل الدخول أو إنشاء حساب الآن لمتابعة تحميل فيديوهاتك."
+                badge: "متبقي لك {r} محاولة مجانية", title: "تنزيل الفيديوهات السريع", subtitle: "نزّل فيديوهاتك بصيغة MP3 أو MP4 عبر الإنترنت مجاناً", btn: "تـنـزيـل", f1: "سهل", f2: "مجاني", f3: "بلا حدود", f4: "لا يحتاج التنزيل", welcome: "اهلا بك في محمل الفيديوهات السريع ما عليك سوي لصق الرابط فيه مربع الURL ثم ضغط تحميل نحن سعداء جدا لانك تستخدم موقعنا ونأمل ان يكون عجبك لديك ١٥ محاولة مجانية بدون تسجيل دخول لتنزيل الفيدوهات وبعدها تنتقل للحساب المدفوع ويجب تسجيل الدخول شكرا لك حقا انك تستخدم خدمتنا", pTitle: "⚠️ انتهت المحاولات المجانية!", pText: "لديك 15 محاولة مجانية قبل تسجيل الدخول. يرجى تسجيل الدخول الآمن باستخدام حساب Google الخاص بك الآن لمتابعة التنزيل الفوري."
             },
             en: {
-                badge: "{r} free downloads remaining", title: "Fast Video Downloader", subtitle: "Download your favorite videos as MP3 or MP4 online for free", btn: "Download", f1: "Easy", f2: "Free", f3: "Unlimited", f4: "No Install", welcome: "Welcome to our fast video downloader! Just paste the link into the URL box and click download. We are very happy you are using our website and hope you like it. You have 15 free attempts without logging in, after which you transfer to the paid account and must log in. Thank you truly for using our service.", pTitle: "⚠️ Free limits reached!", pText: "You have 15 free downloads before logging in. Please log in or create an account to continue downloading."
+                badge: "{r} free downloads remaining", title: "Fast Video Downloader", subtitle: "Download your favorite videos as MP3 or MP4 online for free", btn: "Download", f1: "Easy", f2: "Free", f3: "Unlimited", f4: "No Install", welcome: "Welcome to our fast video downloader! Just paste the link into the URL box and click download. We are very happy you are using our website and hope you like it. You have 15 free attempts without logging in, after which you transfer to the paid account and must log in. Thank you truly for using our service.", pTitle: "⚠️ Free limits reached!", pText: "You have 15 free downloads before logging in. Please log in securely with your Google account to continue downloading."
             }
         };
         let currentLang = 'ar';
         let downloadsCount = localStorage.getItem('user_downloads') ? parseInt(localStorage.getItem('user_downloads')) : 0;
         let isLoggedIn = localStorage.getItem('user_logged_in') === 'true';
         updateUIElements();
+        
         function setFormat(fmt) {
             document.getElementById('videoFormat').value = fmt;
             document.getElementById('opt-mp4').classList.remove('active');
@@ -137,14 +157,18 @@ HTML_CODE = """
             window.open(downloadUrl, '_blank');
             if (!isLoggedIn && downloadsCount >= 15) { setTimeout(() => { document.getElementById('paywallZone').style.display = 'flex'; }, 1000); }
         }
-        function handleLogin(e) {
-            e.preventDefault();
-            localStorage.setItem('user_logged_in', 'true');
-            isLoggedIn = true;
-            document.getElementById('paywallZone').style.display = 'none';
-            alert('تم تسجيل الدخول بنجاح! يمكنك الآن الاستمرار في التحميل.');
-            updateUIElements();
+        
+        // هذه الدالة تعمل فقط عند نجاح تسجيل الدخول الحقيقي من جوجل
+        function onGoogleSignIn(response) {
+            if (response.credential) {
+                localStorage.setItem('user_logged_in', 'true');
+                isLoggedIn = true;
+                document.getElementById('paywallZone').style.display = 'none';
+                alert('تم تسجيل الدخول بأمان عبر حساب Google بنجاح!');
+                updateUIElements();
+            }
         }
+        
         function updateUIElements() {
             let percentage = (downloadsCount / 15) * 100;
             if (isLoggedIn) percentage = 0; 
@@ -152,7 +176,7 @@ HTML_CODE = """
             let remaining = 15 - downloadsCount;
             if (remaining < 0 || isLoggedIn) remaining = 0;
             let data = translations[currentLang] || translations['en'];
-            if (isLoggedIn) { document.getElementById('limitBadge').innerText = "وضع الحساب النشط ✨"; document.getElementById('paywallZone').style.display = 'none'; } else { document.getElementById('limitBadge').innerText = data.badge.replace("{r}", remaining); }
+            if (isLoggedIn) { document.getElementById('limitBadge').innerText = "وضع حساب Google نشط ✨"; document.getElementById('paywallZone').style.display = 'none'; } else { document.getElementById('limitBadge').innerText = data.badge.replace("{r}", remaining); }
             document.getElementById('mainTitle').innerText = data.title;
             document.getElementById('mainSubtitle').innerText = data.subtitle;
             document.getElementById('btnText').innerText = data.btn;
@@ -199,6 +223,5 @@ def download():
         return f"خطأ في النظام: {str(e)}", 500
 
 if __name__ == '__main__':
-    # لتشغيل السيرفر على خطة Render بشكل متوافق ومثالي
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
